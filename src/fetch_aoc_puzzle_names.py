@@ -78,8 +78,11 @@ def get_puzzle_name(day, year):
     if h2_tag:
         h2_text = h2_tag.get_text(strip=True)
         
-        start_index = h2_text.find(f"--- Day {day}: ") + 1
-        end_index = h2_text.find(" ---")
+        start = f"--- Day {day}: "
+        end = " ---"
+        
+        start_index = h2_text.find(start) + len(start)
+        end_index = h2_text.find(end)
         
         if start_index != -1 and end_index != -1:
             puzzle_name = h2_text[start_index:end_index]
