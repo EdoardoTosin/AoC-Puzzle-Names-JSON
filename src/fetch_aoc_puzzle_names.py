@@ -88,7 +88,7 @@ def get_puzzle_name(day, year):
             def save_cache():
                 with open(cache_file, 'w') as cache:
                     json.dump({'puzzle_name': puzzle_name}, cache, indent=2)
-                    file.write("\n")
+                    cache.write("\n")
             retry_operation(save_cache, retries=3, backoff=True)
             
             return puzzle_name.strip(), True
