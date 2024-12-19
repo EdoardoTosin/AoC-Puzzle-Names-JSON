@@ -1,0 +1,52 @@
+name: Update AoC Puzzle Names JSON
+
+on:
+  schedule:
+    - cron: '10 5 1-25 12 *' # Runs at 12:10 AM EST (UTC-5) on Dec 1st to Dec 25th
+  workflow_dispatch: # Allows manual trigger if needed
+
+jobs:
+  update_puzzles_json:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: main
+      
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        id: cp3x
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      - run: echo '${{ steps.cp3x.outputs.python-version }}'
+      
+      # Install dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: main
+      
+      # Run the Python script
+      - name: Run Python script
+        run: python src/fetch_aoc_puzzle_names.py
+        working-directory: main
+      
+      # Configure Git user
+      - name: Set up Git user
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+        
+      # Commit changes to json file if any
+      - name: Commit changes to json file if any
+        run: |
+          git add puzzles.json
+          git commit -m "Update puzzles.json" || echo "No changes to commit"
+          git push origin main
+        working-directory: main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Default GitHub token for pushing changes
