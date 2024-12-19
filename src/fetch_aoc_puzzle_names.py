@@ -39,7 +39,7 @@ def retry_operation(func, retries=3, delay=2, backoff=True):
             if attempt < retries - 1:
                 logging.warning(f"Attempt {attempt + 1} failed. Retrying... Error: {e}")
                 if backoff:
-                    sleep(2 ** attempt)
+                    time.sleep(delay * (2 ** attempt))
             else:
                 logging.error(f"Failed after {retries} attempts. Error: {e}")
                 return None
