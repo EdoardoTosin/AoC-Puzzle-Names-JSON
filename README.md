@@ -54,8 +54,8 @@ The repository includes a GitHub Actions workflow that:
 
 If you'd like to run the script locally, there are two variants:
 
-- Python: [update_puzzles.py](https://raw.githubusercontent.com/EdoardoTosin/AoC-Puzzle-Names-JSON/refs/heads/main/aoc/update_puzzles.py)
-- Bash: [update_puzzles.sh](https://raw.githubusercontent.com/EdoardoTosin/AoC-Puzzle-Names-JSON/refs/heads/main/aoc/update_puzzles.sh)
+- Python: [`update_puzzles.py`](https://raw.githubusercontent.com/EdoardoTosin/AoC-Puzzle-Names-JSON/refs/heads/main/aoc/update_puzzles.py)
+- Bash: [`update_puzzles.sh`](https://raw.githubusercontent.com/EdoardoTosin/AoC-Puzzle-Names-JSON/refs/heads/main/aoc/update_puzzles.sh)
 
 ### Python
 
