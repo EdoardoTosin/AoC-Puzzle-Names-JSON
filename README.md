@@ -1,6 +1,11 @@
 # Advent of Code Puzzle Names JSON
 
-[![Update AoC Puzzle Names JSON](https://github.com/EdoardoTosin/AoC-Puzzle-Names-JSON/actions/workflows/update-aoc-json.yml/badge.svg?branch=main)](https://github.com/EdoardoTosin/AoC-Puzzle-Names-JSON/actions/workflows/update-aoc-json.yml)
+<p align="center">
+    <a href="https://github.com/EdoardoTosin/AoC-Puzzle-Names-JSON/actions/workflows/update-aoc-json-bash.yml">
+        <img alt="Update AoC Puzzle Names JSON (Bash)" src="https://github.com/EdoardoTosin/AoC-Puzzle-Names-JSON/actions/workflows/update-aoc-json-bash.yml/badge.svg"></a>
+    <a href="https://github.com/EdoardoTosin/AoC-Puzzle-Names-JSON/actions/workflows/update-aoc-json-python.yml">
+        <img alt="Update AoC Puzzle Names JSON (Python)" src="https://github.com/EdoardoTosin/AoC-Puzzle-Names-JSON/actions/workflows/update-aoc-json-python.yml/badge.svg"></a>
+</p>
 
 This repository contains a script that dynamically fetches the puzzle names for all Advent of Code challenges starting from 2015. The output is stored in a JSON file named [`puzzles.json`](https://raw.githubusercontent.com/EdoardoTosin/AoC-Puzzle-Names-JSON/refs/heads/main/puzzles.json).
 
