@@ -1,4 +1,4 @@
-name: Update AoC Puzzle Names JSON
+name: Update AoC Puzzle Names JSON (Bash)
 
 on:
   schedule:
@@ -17,25 +17,23 @@ jobs:
         with:
           path: main
       
-      # Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        id: cp3x
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-      - run: echo '${{ steps.cp3x.outputs.python-version }}'
+      # Set up Bash environment
+      - name: Set up Bash environment
+        run: sudo apt update && sudo apt install -y jq curl gawk
       
-      # Install dependencies
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      # Make the Bash script executable
+      - name: Make script executable
+        run: chmod +x aoc/update_puzzles.sh
         working-directory: main
       
-      # Run the Python script
-      - name: Run Python script
-        run: python src/fetch_aoc_puzzle_names.py
+      # Run the Bash script
+      - name: Run Bash script
+        run: ./aoc/update_puzzles.sh
         working-directory: main
-      
+        env:
+          OUTPUT_FILE: puzzles.json
+          CACHE_DIR: cache
+        
       # Configure Git user
       - name: Set up Git user
         run: |
