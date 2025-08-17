@@ -6,48 +6,32 @@ on:
   workflow_dispatch: # Allows manual trigger if needed
 
 jobs:
-  update_puzzles_json:
+  update:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
     steps:
-      # Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          path: main
+          token: ${{ secrets.GITHUB_TOKEN }}
       
-      # Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        id: cp3x
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
-      - run: echo '${{ steps.cp3x.outputs.python-version }}'
       
-      # Install dependencies
       - name: Install dependencies
-        run: pip install -r requirements.txt
-        working-directory: main
+        run: pip install requests beautifulsoup4 pytz
       
-      # Run the Python script
-      - name: Run Python script
-        run: python aoc/fetch_aoc_puzzle_names.py
-        working-directory: main
-      
-      # Configure Git user
-      - name: Set up Git user
+      - name: Update puzzles
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          chmod +x aoc/update_puzzles.py
+          python aoc/update_puzzles.py
         
-      # Commit changes to json file if any
-      - name: Commit changes to json file if any
+      - name: Commit changes
         run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add puzzles.json
-          git commit -m "Update puzzles.json" || echo "No changes to commit"
-          git push origin main
-        working-directory: main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Default GitHub token for pushing changes
+          git diff --staged --quiet || git commit -m "Update AoC puzzles [$(date +%Y-%m-%d)]"
+          git push

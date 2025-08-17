@@ -1,76 +1,21 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-IFS=$'\n\t'
 
-# Log function with levels
-log() {
-    local level="$1"
-    local message="$2"
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+readonly OUTPUT_FILE="${OUTPUT_FILE:-puzzles.json}"
+readonly CACHE_DIR="${CACHE_DIR:-cache}"
+readonly START_YEAR=2015
 
-    echo "$timestamp [$level] - $message" >&2
-}
+# Get current date in EST
+current_date=$(TZ=America/New_York date)
+current_year=$(date -d "$current_date" +%Y)
+current_month=$((10#$(date -d "$current_date" +%m)))
+current_day=$((10#$(date -d "$current_date" +%d)))
 
-# Parse command line arguments
-while getopts "o:c:" opt; do
-    case "$opt" in
-        o) OUTPUT_FILE="$OPTARG" ;;
-        c) CACHE_DIR="$OPTARG" ;;
-        *) log "ERROR" "Invalid option" && exit 1 ;;
-    esac
-done
-
-# Default values
-OUTPUT_FILE="${OUTPUT_FILE:-puzzles.json}"
-CACHE_DIR="${CACHE_DIR:-cache}"
-
-# Check for required tools
-check_tools() {
-    local missing_tools=()
-    local installed_tools=()
-    
-    for tool in "${REQUIRED_TOOLS[@]}"; do
-        if command -v "$tool" &>/dev/null; then
-            installed_tools+=("$tool")
-        else
-            missing_tools+=("$tool")
-        fi
-    done
-    
-    if [[ "${#missing_tools[@]}" -ne 0 ]]; then
-        log "ERROR" "The following required tools are missing: ${missing_tools[*]}"
-        log "INFO" "You can install them using: sudo apt install ${missing_tools[*]}"
-        exit 1
-    fi
-    
-    # Join installed tools with a space and log them in a single line
-    local tools_list
-    tools_list=$(IFS=' ' ; echo "${installed_tools[*]}")
-    log "INFO" "The following tools are installed: $tools_list"
-}
-
-# Define constant variables
-declare -r TIMEZONE="America/New_York"
-declare -r START_YEAR=2015
-declare -r OUTPUT_FILE="${OUTPUT_FILE:-puzzles.json}"
-declare -r CACHE_DIR="${CACHE_DIR:-cache}"
-declare -r REQUIRED_TOOLS=("curl" "jq" "gawk")
-
-# Define the current date in UTC-5 (EST)
-current_date=$(TZ="$TIMEZONE" date +"%Y-%m-%d")
-current_year=$(TZ="$TIMEZONE" date +"%Y")
-current_month=$(TZ="$TIMEZONE" date +"%m")
-current_day=$(TZ="$TIMEZONE" date +"%d")
-
-# Determine the valid year and last valid day
-if [[ "$current_month" -eq 12 && "$current_day" -le 25 ]]; then
-    end_year="$current_year"
-    last_day="$current_day"
-elif [[ "$current_month" -eq 12 && "$current_day" -gt 25 ]]; then
-    end_year="$current_year"
-    last_day=25
+# Determine end year and last valid day
+if [[ $current_month -eq 12 && $current_day -le 25 ]]; then
+    end_year=$current_year
+    last_day=$current_day
 else
     end_year=$((current_year - 1))
     last_day=25
@@ -78,106 +23,59 @@ fi
 
 mkdir -p "$CACHE_DIR"
 
-# Retry function
-retry() {
-    local retries=$1
-    local delay=$2
-    shift 2
-    local count=0
-    until "$@"; do
-        count=$((count + 1))
-        if [[ "$count" -ge "$retries" ]]; then
-            log "ERROR" "Command failed after $count attempts: $*"
-            return 1
-        fi
-        log "WARN" "Retry $count/$retries for: $*"
-        sleep "$delay"
-    done
-}
+log() { echo "$(date '+%H:%M:%S') [$1] $2" >&2; }
 
-# Get puzzle name function
 get_puzzle_name() {
-    local day=$1
-    local year=$2
-    local url="https://adventofcode.com/${year}/day/${day}"
-    local cache_key
-    local cache_file
-    cache_key=$(echo -n "$url" | md5sum | cut -d' ' -f1)
-    cache_file="${CACHE_DIR}/${cache_key}.json"
+    local day=$1 year=$2
+    local cache_file="$CACHE_DIR/${year}_${day}.txt"
     
-    if [[ -f "$cache_file" ]]; then
-        # Using cached data, no sleep needed
-        log "INFO" "Using cached data for Year $year, Day $day"
-        jq -r '.puzzle_name' "$cache_file" || {
-            log "ERROR" "Failed to parse cached puzzle name for Year $year, Day $day"
-            return 1
-        }
-        return
-    fi
+    # Return cached result if exists
+    [[ -f "$cache_file" ]] && { cat "$cache_file"; return; }
     
-    # Fetch data from the URL
-    local response
-    response=$(retry 3 2 curl -sSL "$url" || { log "ERROR" "Failed to fetch puzzle for Year $year, Day $day"; return 1; })
-    
-    # Extract puzzle name from the response
+    # Fetch with retry and rate limiting
+    local url="https://adventofcode.com/$year/day/$day"
     local puzzle_name
-    puzzle_name=$(echo "$response" | grep -oP "(?<=--- Day $day: ).*(?= ---)")
     
-    if [[ -n "$puzzle_name" ]]; then
-        # Save the puzzle name to the cache file
-        echo "{\"puzzle_name\": \"$puzzle_name\"}" >"$cache_file"
-        log "INFO" "Puzzle name for Year $year, Day $day: $puzzle_name"
-        echo "$puzzle_name"
-
-        # Apply sleep after fetching data from the web
-        sleep "$(awk -v min=0.5 -v max=1.5 'BEGIN{srand(); print min+rand()*(max-min)}')"
-    else
-        log "ERROR" "Puzzle name not found for Year $year, Day $day."
-        echo ""  # Return an empty string if no puzzle name found
-    fi
-}
-
-# Check if puzzle name is missing in JSON
-is_puzzle_missing() {
-    local json_data=$1
-    local year=$2
-    local day=$3
-    [[ -z $(echo "$json_data" | jq -r --arg year "$year" --arg day "$day" '.[$year][$day] // empty') ]]
-}
-
-# Update puzzles JSON file
-update_json_file() {
-    local json_data
-    if [[ -f "$OUTPUT_FILE" ]]; then
-        json_data=$(<"$OUTPUT_FILE")
-    else
-        json_data="{}"
-    fi
-    
-    for ((year = START_YEAR; year <= end_year; year++)); do
-        for ((day = 1; day <= 25; day++)); do
-            if [[ "$year" -eq "$end_year" && "$day" -gt "$last_day" ]]; then
-                break
-            fi
-
-            if is_puzzle_missing "$json_data" "$year" "$day"; then
-                log "INFO" "Fetching puzzle for Year $year, Day $day"
-                puzzle_name=$(get_puzzle_name "$day" "$year")
-
-                if [[ -n "$puzzle_name" ]]; then
-                    # Store the puzzle name in the JSON file
-                    json_data=$(echo "$json_data" | jq --arg year "$year" --arg day "$day" --arg name "$puzzle_name" \
-                        '.[$year][$day] = $name')
-                fi
-            fi
-        done
+    for attempt in {1..3}; do
+        if puzzle_name=$(curl -sSL --max-time 10 "$url" | 
+                         grep -oP "(?<=--- Day $day: ).*(?= ---)" | head -1); then
+            [[ -n "$puzzle_name" ]] && {
+                echo "$puzzle_name" | tee "$cache_file"
+                sleep 0.$((RANDOM % 10 + 5))  # 0.5-1.4s random delay
+                return
+            }
+        fi
+        [[ $attempt -lt 3 ]] && sleep $((attempt * 2))
     done
     
-    # Write the updated JSON data to the output file
-    echo "$json_data" | jq '.' >"$OUTPUT_FILE"
-    log "INFO" "JSON file '$OUTPUT_FILE' has been updated successfully."
+    log "WARN" "Failed to fetch puzzle for $year day $day"
+    return 1
 }
 
-# Main script
-check_tools
-update_json_file
+# Initialize or load existing JSON
+json_data=$([ -f "$OUTPUT_FILE" ] && cat "$OUTPUT_FILE" || echo "{}")
+
+log "INFO" "Processing years $START_YEAR-$end_year, up to day $last_day"
+
+for year in $(seq $START_YEAR $end_year); do
+    max_day=$([ $year -eq $end_year ] && echo $last_day || echo 25)
+    
+    for day in $(seq 1 $max_day); do
+        # Skip if puzzle already exists
+        existing=$(echo "$json_data" | jq -r --arg y "$year" --arg d "$day" '.[$y][$d] // empty')
+        [[ -n "$existing" ]] && continue
+        
+        log "INFO" "Fetching $year day $day"
+        if puzzle_name=$(get_puzzle_name "$day" "$year"); then
+            json_data=$(echo "$json_data" | jq --arg y "$year" --arg d "$day" --arg n "$puzzle_name" \
+                '.[$y][$d] = $n')
+        fi
+    done
+done
+
+# Save updated JSON
+echo "$json_data" | jq --indent 2 \
+    'to_entries | sort_by(.key) | map(.value |= (to_entries | sort_by(.key|tonumber) | from_entries)) | from_entries' \
+    > "$OUTPUT_FILE"
+
+log "INFO" "Updated $OUTPUT_FILE successfully"
